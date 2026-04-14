@@ -12,7 +12,6 @@
 <p>💵 Efectivo: ₡<span id="efectivo">0</span></p>
 <p>🏦 Ahorro: ₡<span id="ahorro">0</span></p>
 <p>⭐ XP: <span id="xp">0</span></p>
-<p>🔥 Racha: <span id="racha">0</span> días</p>
 <p>🆙 Nivel: <span id="nivel">1</span></p>
 <p>❤️ Vidas: <span id="vidas">2</span></p>
 
@@ -20,10 +19,22 @@
 
 <hr>
 
-<button onclick="iniciarTrabajo()">⏱️ Trabajar</button>
-<button onclick="guardarDinero()">🏦 Guardar</button>
+<!-- 🔥 PROGRESO -->
+<h3>📈 Progreso</h3>
+<p>Nivel actual: <span id="nivelNombre">Activación</span></p>
+<p>Día: <span id="dia">1</span> / <span id="metaDias">7</span></p>
+
+<div style="width:80%; margin:auto; background:#333; border-radius:10px;">
+  <div id="barra" style="height:20px; width:10%; background:#4caf50; border-radius:10px;"></div>
+</div>
+
+<hr>
+
+<button onclick="trabajar()">💼 Trabajar</button>
+<button onclick="ahorrar()">🏦 Guardar</button>
 <button onclick="gasto()">💸 Gasto</button>
 
+<button onclick="spawnMonstruo()">👾 Monstruo</button>
 <button onclick="pelear()">⚔️ Defender</button>
 <button onclick="ignorar()">😴 Ignorar</button>
 
@@ -34,26 +45,40 @@
 
 <script>
 
+// DATOS
 let data = JSON.parse(localStorage.getItem("data")) || {
   efectivo: 0,
   ahorro: 0,
   xp: 0,
   nivel: 1,
   vidas: 2,
-  racha: 0,
-  ultimoDia: null,
-  ultimoMonstruo: Date.now(),
-  gastos: []
+  gastos: [],
+  progresoDia: 1,
+  nivelJuego: 1
 };
 
-let trabajando = false;
-let inicioTrabajo = 0;
 let monstruo = null;
 
+// NIVELES REALES
+const niveles = [
+  {nombre:"Activación", dias:7},
+  {nombre:"Arranque", dias:7},
+  {nombre:"Ritmo", dias:10},
+  {nombre:"Estabilidad", dias:10},
+  {nombre:"Control", dias:14},
+  {nombre:"Disciplina", dias:14},
+  {nombre:"Flujo", dias:21},
+  {nombre:"Alto rendimiento", dias:21},
+  {nombre:"Dominio", dias:30},
+  {nombre:"Modo Pro", dias:30}
+];
+
+// GUARDAR
 function guardar() {
   localStorage.setItem("data", JSON.stringify(data));
 }
 
+// NIVEL XP
 function nivelCalc() {
   if (data.xp > 10000) data.nivel = 5;
   else if (data.xp > 5000) data.nivel = 4;
@@ -62,43 +87,42 @@ function nivelCalc() {
   else data.nivel = 1;
 }
 
-function iniciarTrabajo() {
-  if (trabajando) {
-    let tiempo = Math.floor((Date.now() - inicioTrabajo) / 60000);
-    let ganancia = tiempo * 200;
-
-    data.efectivo += ganancia;
-    data.xp += ganancia;
-
-    actualizarRacha();
-
-    trabajando = false;
-
-    document.getElementById("estado").innerText =
-      "💼 Trabajaste " + tiempo + " min (+₡" + ganancia + ")";
+// AVANZAR DÍA
+function avanzarDia(ganado) {
+  if (ganado > 0) {
+    data.progresoDia++;
   } else {
-    trabajando = true;
-    inicioTrabajo = Date.now();
-
-    document.getElementById("estado").innerText =
-      "⏳ Trabajando...";
+    data.progresoDia = 1; // reinicio si ₡0
   }
+
+  let nivelActual = niveles[data.nivelJuego - 1];
+
+  if (data.progresoDia > nivelActual.dias) {
+    data.nivelJuego++;
+    data.progresoDia = 1;
+    alert("🔥 Subiste de nivel: " + niveles[data.nivelJuego - 1].nombre);
+  }
+}
+
+// TRABAJAR
+function trabajar() {
+  let g = prompt("¿Cuánto hiciste?");
+  if (!g) return;
+
+  g = parseInt(g) || 0;
+
+  data.efectivo += g;
+  data.xp += g;
+
+  avanzarDia(g);
 
   nivelCalc();
   guardar();
   actualizar();
 }
 
-function actualizarRacha() {
-  let hoy = new Date().toDateString();
-
-  if (data.ultimoDia !== hoy) {
-    data.racha++;
-    data.ultimoDia = hoy;
-  }
-}
-
-function guardarDinero() {
+// AHORRAR
+function ahorrar() {
   let m = prompt("¿Cuánto guardar?");
   if (!m) return;
 
@@ -113,6 +137,7 @@ function guardarDinero() {
   actualizar();
 }
 
+// GASTO
 function gasto() {
   let nombre = prompt("¿En qué?");
   let m = prompt("¿Cuánto?");
@@ -130,35 +155,46 @@ function gasto() {
   actualizar();
 }
 
-function generarMonstruo() {
-  let ahora = Date.now();
-  let horas = (ahora - data.ultimoMonstruo) / (1000 * 60 * 60);
+// MONSTRUO
+function spawnMonstruo() {
+  if (monstruo) return;
 
-  if (horas > 6 && !monstruo) {
-    let daño = Math.floor(Math.random() * 5000) + 2000;
+  let daño = Math.floor(Math.random() * 5000 * data.nivel) + 2000;
 
-    monstruo = { daño };
-    data.ultimoMonstruo = ahora;
+  monstruo = { daño };
 
-    document.getElementById("estado").innerText =
-      "👾 Monstruo quiere ₡" + daño;
-  }
+  document.getElementById("estado").innerText =
+    "👾 Gasto quiere ₡" + daño;
 }
 
+// PELEAR
 function pelear() {
-  if (!monstruo) return alert("No hay monstruo");
+  if (!monstruo) return;
 
-  let decision = confirm("¿Trabajar para defender?");
+  let decision = confirm("¿Vas a trabajar para evitarlo?");
   if (!decision) return;
 
-  iniciarTrabajo();
+  let g = prompt("¿Cuánto hiciste?");
+  if (!g) return;
+
+  g = parseInt(g) || 0;
+
+  data.efectivo += g;
+  data.xp += g;
+
+  avanzarDia(g);
 
   monstruo = null;
+
+  nivelCalc();
+  guardar();
+  actualizar();
 
   document.getElementById("estado").innerText =
     "🏆 Defendiste tu dinero";
 }
 
+// IGNORAR
 function ignorar() {
   if (!monstruo) return;
 
@@ -169,9 +205,10 @@ function ignorar() {
 
   if (data.vidas <= 0) {
     data.vidas = 2;
-    data.racha = 0;
     alert("💀 Perdiste el control");
   }
+
+  avanzarDia(0);
 
   monstruo = null;
 
@@ -182,13 +219,22 @@ function ignorar() {
     "💀 Perdiste dinero";
 }
 
+// UI
 function actualizar() {
   document.getElementById("efectivo").innerText = data.efectivo;
   document.getElementById("ahorro").innerText = data.ahorro;
   document.getElementById("xp").innerText = data.xp;
   document.getElementById("nivel").innerText = data.nivel;
   document.getElementById("vidas").innerText = data.vidas;
-  document.getElementById("racha").innerText = data.racha;
+
+  let nivelActual = niveles[data.nivelJuego - 1];
+
+  document.getElementById("nivelNombre").innerText = nivelActual.nombre;
+  document.getElementById("dia").innerText = data.progresoDia;
+  document.getElementById("metaDias").innerText = nivelActual.dias;
+
+  let progreso = (data.progresoDia / nivelActual.dias) * 100;
+  document.getElementById("barra").style.width = progreso + "%";
 
   let lista = document.getElementById("lista");
   lista.innerHTML = "";
@@ -200,8 +246,7 @@ function actualizar() {
   });
 }
 
-setInterval(generarMonstruo, 60000);
-
+// INICIAR
 actualizar();
 
 </script>
