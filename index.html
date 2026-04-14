@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Racha Pro</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0f0f0f;
+  color: white;
+}
+
+.container {
+  max-width: 400px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: #1a1a1a;
+  padding: 15px;
+  border-radius: 15px;
+  margin-bottom: 15px;
+}
+
+button {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #2a2a2a;
+  color: white;
+  font-size: 16px;
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+h1, h2, h3 {
+  text-align: center;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎮 Racha Pro</h1>
+
+<div class="card">
+<p>💵 Efectivo: ₡<span id="efectivo">0</span></p>
+<p>🏦 Ahorro: ₡<span id="ahorro">0</span></p>
+<p>⭐ XP: <span id="xp">0</span></p>
+<p>🆙 Nivel: <span id="nivel">1</span></p>
+<p>❤️ Vidas: <span id="vidas">2</span></p>
+</div>
+
+<h2 id="estado">Listo para jugar</h2>
+
+<div class="btn-group">
+<button onclick="trabajar()">💼 Trabajar</button>
+<button onclick="ahorrar()">🏦 Guardar</button>
+<button onclick="gasto()">💸 Gasto</button>
+
+<button onclick="spawnMonstruo()">👾 Monstruo</button>
+<button onclick="pelear()">⚔️ Defender</button>
+<button onclick="ignorar()">😴 Ignorar</button>
+</div>
+
+<hr>
+
+<h3>📜 Gastos</h3>
+<ul id="lista"></ul>
+
+</div>
+
+<script>
+
+// 🔒 CARGA SEGURA
+let data;
+try {
+  data = JSON.parse(localStorage.getItem("data")) || {};
+} catch(e) {
+  data = {};
+}
+
+// 🧱 VALORES POR DEFECTO
+data.efectivo = data.efectivo || 0;
+data.ahorro = data.ahorro || 0;
+data.xp = data.xp || 0;
+data.nivel = data.nivel || 1;
+data.vidas = data.vidas || 2;
+data.gastos = data.gastos || [];
+
+let monstruo = null;
+
+function guardar() {
+  localStorage.setItem("data", JSON.stringify(data));
+}
+
+function nivelCalc() {
+  if (data.xp > 10000) data.nivel = 5;
+  else if (data.xp > 5000) data.nivel = 4;
+  else if (data.xp > 2000) data.nivel = 3;
+  else if (data.xp > 500) data.nivel = 2;
+  else data.nivel = 1;
+}
+
+function trabajar() {
+  let g = prompt("¿Cuánto hiciste?");
+  if (!g) return;
+
+  g = parseInt(g) || 0;
+
+  data.efectivo += g;
+  data.xp += g;
+
+  nivelCalc();
+  guardar();
+  actualizar();
+
+  document.getElementById("estado").innerText = "🔥 +₡" + g;
+}
+
+function ahorrar() {
+  let m = prompt("Tenés ₡" + data.efectivo + "\n¿Cuánto guardar?");
+  if (!m) return;
+
+  m = parseInt(m) || 0;
+
+  if (m > data.efectivo) return alert("No alcanza");
+
+  data.efectivo -= m;
+  data.ahorro += m;
+
+  guardar();
+  actualizar();
+
+  document.getElementById("estado").innerText = "🏦 Guardaste ₡" + m;
+}
+
+function gasto() {
+  let nombre = prompt("¿En qué?");
+  let m = prompt("¿Cuánto?");
+  if (!nombre || !m) return;
+
+  m = parseInt(m) || 0;
+
+  data.efectivo -= m;
+  if (data.efectivo < 0) data.efectivo = 0;
+
+  data.gastos.push({nombre, m});
+
+  guardar();
+  actualizar();
+
+  document.getElementById("estado").innerText =
+    "💸 " + nombre + " -₡" + m;
+}
+
+function spawnMonstruo() {
+  if (monstruo) return;
+
+  let daño = Math.floor(Math.random() * 5000 * data.nivel) + 2000;
+
+  monstruo = { daño };
+
+  document.getElementById("estado").innerText =
+    "👾 Gasto quiere ₡" + daño;
+}
+
+function pelear() {
+  if (!monstruo) return;
+
+  let g = prompt("Trabajá para defender\n¿Cuánto hiciste?");
+  if (!g) return;
+
+  g = parseInt(g) || 0;
+
+  data.efectivo += g;
+  data.xp += g;
+
+  monstruo = null;
+
+  nivelCalc();
+  guardar();
+  actualizar();
+
+  document.getElementById("estado").innerText =
+    "🏆 Defendiste";
+}
+
+function ignorar() {
+  if (!monstruo) return;
+
+  data.efectivo -= monstruo.daño;
+  if (data.efectivo < 0) data.efectivo = 0;
+
+  data.vidas--;
+
+  if (data.vidas <= 0) {
+    data.vidas = 2;
+    alert("💀 Perdiste control");
+  }
+
+  monstruo = null;
+
+  guardar();
+  actualizar();
+
+  document.getElementById("estado").innerText =
+    "💀 Perdiste dinero";
+}
+
+function actualizar() {
+  document.getElementById("efectivo").innerText = data.efectivo;
+  document.getElementById("ahorro").innerText = data.ahorro;
+  document.getElementById("xp").innerText = data.xp;
+  document.getElementById("nivel").innerText = data.nivel;
+  document.getElementById("vidas").innerText = data.vidas;
+
+  let lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  data.gastos.forEach(g => {
+    let li = document.createElement("li");
+    li.textContent = g.nombre + " ₡" + g.m;
+    lista.appendChild(li);
+  });
+}
+
+actualizar();
+
+</script>
+
+</body>
+</html>
